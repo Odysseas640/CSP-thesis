@@ -18,11 +18,9 @@ int main(int argc, char const *argv[]) {
 		print((*flight_plans_vector)[i]);
 	}
 
+	// Every flight plan has only one pilot. So, one variable for every flight plan,
+	// and it gets an Int value that says who's the pilot.
 	/////////////////////////////////////////////////////////////////
-	// Every flight plan has only one pilot.
-	// So, one variable for every flight plan, and it gets an Int value
-	// that says who's the pilot.
-	// There are 3304 flight plans. Try 3304 pilots and decrease.
 	// int pilots = flight_plans_vector->size();
 	int pilots = 26;
 	naxos::NsProblemManager pm;
