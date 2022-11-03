@@ -2,6 +2,8 @@
 #include <cstring>
 #include "naxos-2.0.5/core/naxos.h"
 #include "flight_plan.hpp"
+#define FLIGHT_PLANS_TO_READ -1
+#define PILOTZ 26
 
 int main(int argc, char const *argv[]) {
 	char *pairings_file = new char[256];
@@ -9,25 +11,27 @@ int main(int argc, char const *argv[]) {
 	strcpy(pairings_file, "./Pairings.txt");
 	// Read all flight plans and put them in a vector
 	std::vector<flightPlan*> *flight_plans_vector = new std::vector<flightPlan*>;
-	read_file_into_vector(flight_plans_vector, pairings_file, -1);
+	printf("Pre-processing......");
+	read_file_into_vector(flight_plans_vector, pairings_file, FLIGHT_PLANS_TO_READ);
+	float IFT = calculate_IFT(flight_plans_vector, PILOTZ);
 
 	// Store flight plan start/end datetimes as minutes from START_DATE (2011/11/1)
 	set_minutes_from_global_start_date(flight_plans_vector, 1, 11, 2011);
+	printf(" done\n");
 
-	for (int i = 0; i < (int) flight_plans_vector->size(); ++i) {
-		print((*flight_plans_vector)[i]);
-	}
+	// for (int i = 0; i < (int) flight_plans_vector->size(); ++i) {
+	// 	print((*flight_plans_vector)[i]);
+	// }
+	printf("IFT: %f\n", IFT);
 
 	// Every flight plan has only one pilot. So, one variable for every flight plan,
 	// and it gets an Int value that says who's the pilot.
 	/////////////////////////////////////////////////////////////////
-	// int pilots = flight_plans_vector->size();
-	int pilots = 26;
 	naxos::NsProblemManager pm;
 	naxos::NsIntVarArray FP;
 	naxos::NsIntVarArray FP_start, FP_end;
 	for (int i = 0; i < (int) flight_plans_vector->size(); ++i) {
-		FP.push_back(naxos::NsIntVar(pm, 1, pilots));
+		FP.push_back(naxos::NsIntVar(pm, 1, PILOTZ));
 		FP_start.push_back(naxos::NsIntVar(pm, 1, 180000)); // 4 months = 172800 minutes + safe margin
 		FP_start[i].set(flight_plans_vector->at(i)->start);
 		FP_end.push_back(naxos::NsIntVar(pm, 1, 180000));

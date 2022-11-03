@@ -20,11 +20,14 @@ typedef struct {
 	// char endAirport[4];
 	DateTime startDateTime;
 	DateTime endDateTime;
-	int start;
-	int end;
+	int start; // Minutes from GLOBAL_START_DATE
+	int end; // Minutes from GLOBAL_START_DATE
+	int flying_time; // Minutes of actual flying time, sum from all individual flights
 } flightPlan;
 
 void print(flightPlan*);
 void read_file_into_vector(std::vector<flightPlan*>*, char*, int);
 void set_minutes_from_global_start_date(std::vector<flightPlan*>*, int, int, int);
+float calculate_IFT(std::vector<flightPlan*>*, int);
+int get_flight_duration(char*);
 #endif
