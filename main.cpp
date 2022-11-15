@@ -2,8 +2,8 @@
 #include <cstring>
 #include "naxos-2.0.5/core/naxos.h"
 #include "flight_plan.hpp"
-#define FLIGHT_PLANS_TO_READ 20 // -1 means ALL
-#define PILOTZ 10 // Pilots count from 1, not 0
+#define FLIGHT_PLANS_TO_READ 150 // -1 means ALL
+#define PILOTZ 26 // Pilots count from 1, not 0
 
 int main(int argc, char const *argv[]) {
 	char *pairings_file = new char[256];
@@ -24,7 +24,7 @@ int main(int argc, char const *argv[]) {
 	// }
 	printf("IFT: %f\n", IFT);
 	int DAYZ = get_number_of_days(flight_plans_vector);
-	int rolling_weeks = get_number_of_rolling_weeks(flight_plans_vector);
+	int ROLLING_WEEKS = get_number_of_rolling_weeks(flight_plans_vector);
 
 	// Every flight plan has only one pilot. So, one variable for every flight plan,
 	// and it gets an Int value that says who's the pilot.
@@ -53,72 +53,66 @@ int main(int argc, char const *argv[]) {
 	// Step 2:
 	// This array contains, for every pilot, for every day of the global
 	// schedule, how many FPs he has that touch that day even for a minute
-	// (so that day isn't a day off). Usually from 0 to 3.
-	/*naxos::NsIntVarArray PilotHasWorkInThatDay; // Size PILOTZ * DAYS
-	// naxos::NsIntVarArray temp;
-	int previous_size = 0, current_size = 0;
+	// (so that day isn't a day off). Usually from 0 to 2, could be up to 3.
+	naxos::NsIntVarArray PilotHasWorkInThatDay; // Size PILOTZ * DAYS
+	naxos::NsDeque<naxos::NsIntVarArray> temps(PILOTZ * DAYZ); // Intermediary array that helps to translate PilotAssignments into PilotHasWorkThatDay
 	for (int ip = 0; ip < PILOTZ; ++ip) {
 		for (int d = 0; d < DAYZ; ++d) {
-			// PilotHasWorkInThatDay.push_back(naxos::NsIntVar(pm, 0, 4)); // Can't be more than 3, that would mean there's a mistake.
-			PilotHasWorkInThatDay.push_back(naxos::NsIntVar(pm, 0, 1));
-			// PilotHasWorkInThatDay[ip * DAYZ + d].set(1);
-			// previous_size = temp.size();
 			for (int ifp = 0; ifp < (int) flight_plans_vector->size(); ++ifp) {
-				// Maybe use a temp NsIntVarArray temp, and when this "if" is true,
-				// append PilotAssignments[ip * flight_plans_vector->size() + ifp].
-				// Then do PilotHasWorkInThatDay[ip * DAYZ + d] = NsSum(temp, 0, temp->size())
-				// Cannot delete "temp" array: just save an index to where we left it in the previous iteration
-				// and continue from there: NsSum(temp, previous_iteration_stopped_here-size_of_array_at_that_time, temp->size())
-				// OTHER IDEA: when this "if" is true, add NsIfThen(PilotAssignments[ip * flight_plans_vector->size() + ifp] == 1, PilotHasWorkInThatDay[ip * DAYZ + d] == 1)
-				// The array PilotHasWorkInThatDay must be instantiated before, with PilotHasWorkInThatDay.push_back(naxos::NsIntVar(pm, 0, 1));
-				// This idea will make sure that PilotHasWorkInThatDay is 1 when it's supposed to be, but it might be 1 when it should be 0.
-				// To fix that, minimize the whole array as a pm goal, so it'll be 0 when no constraint NsIfThen forces 1.
-				// Also test without the minimize goal, to see if the unconstrained variables are 0 or 1.
-				if ((flight_plans_vector->at(ifp)->start > d * 1440 && flight_plans_vector->at(ifp)->start < (d + 1) * 1440)
-					|| (flight_plans_vector->at(ifp)->end > d * 1440 && flight_plans_vector->at(ifp)->end < (d + 1) * 1440)) { // If ifp touches day d
-					// PilotHasWorkInThatDay[ip * DAYZ + d] += PilotAssignments[ip * flight_plans_vector->size() + ifp];
-					// temp.push_back(PilotAssignments[ip * flight_plans_vector->size() + ifp]);
-					pm.add(naxos::NsIfThen(PilotAssignments[ip * flight_plans_vector->size() + ifp] == 1, PilotHasWorkInThatDay[ip * DAYZ + d] == 1));
+				if ((flight_plans_vector->at(ifp)->start >= d * 1440 && flight_plans_vector->at(ifp)->start < (d + 1) * 1440)
+					|| (flight_plans_vector->at(ifp)->end >= d * 1440 && flight_plans_vector->at(ifp)->end < (d + 1) * 1440)) { // If ifp touches day d
+					// printf("FP n. %d touches day %d (%d - %d)\n", ifp, d, flight_plans_vector->at(ifp)->start, flight_plans_vector->at(ifp)->end);
+					temps[ip * DAYZ + d].push_back(PilotAssignments[ip * flight_plans_vector->size() + ifp]);
+				}
+				else {
+					// printf("FP n. %d does not touch day %d (%d - %d)\n", ifp, d, flight_plans_vector->at(ifp)->start, flight_plans_vector->at(ifp)->end);
 				}
 			}
-			// current_size = temp.size();
-			// printf("previous_size: %d, current_size: %d\n", previous_size, current_size);
-			// if (current_size > previous_size)
-			// 	PilotHasWorkInThatDay.push_back(naxos::NsSum(temp, previous_size, current_size - previous_size));
-			// else { // No flight touches this day, whether pilot has it or not
-			// 	PilotHasWorkInThatDay.push_back(naxos::NsIntVar(pm, 0, 0));
-			// 	PilotHasWorkInThatDay[ip * DAYZ + d].set(0);
-			// }
+			if (temps[ip * DAYZ + d].size() > 0) { // Flight plans exist that touch day d
+				// The 2 lines below are equivalent, and require the corresponding line to be active in step 3
+				PilotHasWorkInThatDay.push_back(naxos::NsSum(temps[ip * DAYZ + d])); // Array shows how many FPs touch that day
+				// PilotHasWorkInThatDay.push_back(naxos::NsSum(temps[ip * DAYZ + d]) > 0); // Array shows if an FP touches that day
+			}
+			else { // No flight plans at all touch day d
+				PilotHasWorkInThatDay.push_back(naxos::NsIntVar(pm, 0, 0));
+				PilotHasWorkInThatDay[ip * DAYZ + d].set(0); // Put a 0 variable that says...
+				// ...pilot has no work that day. He couldn't have work, cause there's no flights.
+			}
 		}
 	}
-	naxos::NsIntVar PilotHasWorkInThatDay_minimize = naxos::NsSum(PilotHasWorkInThatDay, 0, PilotHasWorkInThatDay.size());*/
 	// IN STEP 2, MAYBE TRY NsCount() AND JUST DO BOOLEAN TYPE 0/1 FOR IF HE HAS ANY WORK THAT DAY, NEVER MIND 1, 2, OR 3 FPs.
 	// THIS WILL HELP WITH STEP 3: USE NsSum(iw, plus_days_in_week). THIS NUMBER WILL BE 0-7 (SUM OF 7 0/1s), AND THAT'S IT.
 	// Step 3:
-	// This array (size PILOTZ * rolling_weeks) contains, for every pilot ip,
+	// This array has size (PILOTZ * ROLLING_WEEKS). It contains, for every pilot ip,
 	// for every rolling week iw, how many days of that week are touched by a flight plan assigned to that pilot.
-	/*naxos::NsIntVarArray PilotBusyDaysInRollingWeek;
-	int plus_days_in_week = 
+	naxos::NsIntVarArray PilotBusyDaysInRollingWeek;
 	for (int ip = 0; ip < PILOTZ; ++ip) {
-		for (int iw = 0; iw < rolling_weeks; ++iw) {
-			PilotBusyDaysInRollingWeek.push_back(naxos::NsIntVar(pm, 0, 7));
-			PilotBusyDaysInRollingWeek = (PilotHasWorkInThatDay[ip * rolling_weeks + iw] > 0)
-			                           + (PilotHasWorkInThatDay[ip * rolling_weeks + iw + 1] > 0)
-			                           + (PilotHasWorkInThatDay[ip * rolling_weeks + iw + 2] > 0)
-			                           + (PilotHasWorkInThatDay[ip * rolling_weeks + iw + 3] > 0)
-			                           + (PilotHasWorkInThatDay[ip * rolling_weeks + iw + 4] > 0)
-			                           + (PilotHasWorkInThatDay[ip * rolling_weeks + iw + 5] > 0)
-			                           + (PilotHasWorkInThatDay[ip * rolling_weeks + iw + 6] > 0);
+		for (int iw = 0; iw < ROLLING_WEEKS; ++iw) {
+			if (DAYZ >= 7)
+				// The 2 lines below are equivalent, and require the corresponding line to be active in step 2
+				// PilotBusyDaysInRollingWeek.push_back(naxos::NsSum(PilotHasWorkInThatDay, ip * ROLLING_WEEKS + iw, 7));
+				PilotBusyDaysInRollingWeek.push_back((PilotHasWorkInThatDay[ip * ROLLING_WEEKS + iw] > 0)
+				                               + (PilotHasWorkInThatDay[ip * ROLLING_WEEKS + iw + 1] > 0)
+				                               + (PilotHasWorkInThatDay[ip * ROLLING_WEEKS + iw + 2] > 0)
+				                               + (PilotHasWorkInThatDay[ip * ROLLING_WEEKS + iw + 3] > 0)
+				                               + (PilotHasWorkInThatDay[ip * ROLLING_WEEKS + iw + 4] > 0)
+				                               + (PilotHasWorkInThatDay[ip * ROLLING_WEEKS + iw + 5] > 0)
+				                               + (PilotHasWorkInThatDay[ip * ROLLING_WEEKS + iw + 6] > 0));
+			else if (DAYZ == 6)
+				// The 2 lines below are equivalent, and require the corresponding line to be active in step 2
+				// PilotBusyDaysInRollingWeek.push_back(naxos::NsSum(PilotHasWorkInThatDay, ip * ROLLING_WEEKS + iw, 6));
+				PilotBusyDaysInRollingWeek.push_back((PilotHasWorkInThatDay[ip * ROLLING_WEEKS + iw] > 0)
+				                               + (PilotHasWorkInThatDay[ip * ROLLING_WEEKS + iw + 1] > 0)
+				                               + (PilotHasWorkInThatDay[ip * ROLLING_WEEKS + iw + 2] > 0)
+				                               + (PilotHasWorkInThatDay[ip * ROLLING_WEEKS + iw + 3] > 0)
+				                               + (PilotHasWorkInThatDay[ip * ROLLING_WEEKS + iw + 4] > 0)
+				                               + (PilotHasWorkInThatDay[ip * ROLLING_WEEKS + iw + 5] > 0));
+			// This constraint only matters if there's 6 days or more.
 			// Step 4:
-			// Constraints: Every week must have <= 5 busy days.
-			pm.add(PilotBusyDaysInRollingWeek[ip * rolling_weeks + iw] <= 5);
+			// Constraint: Every week must have <= 5 busy days.
+			pm.add(PilotBusyDaysInRollingWeek[ip * ROLLING_WEEKS + iw] <= 5);
 		}
-	}*/
-	// Pilot_busy_days_in_rolling_week[pi*rolling_weeks + i_week] = sum of PilotHasWorkInThatDay's
-	//                                 that have a value of >= 1
-	//                   Like: Pilot_busy_days_in_rolling_week = (PilotHasWorkInThatDay>=1) + (PilotHasWorkInThatDay>=1) +... 7 times, cause it's a week.
-	// Step 4:
-	// Constraint: All Pilot_busy_days_in_rolling_week should be <= 5
+	}
 	///////////////////// DAYS OFF - END
 
 	///////////////////////// FLYING TIME OPTIMIZATION - USES STEP 1 FROM ABOVE
@@ -141,7 +135,6 @@ int main(int argc, char const *argv[]) {
 		PilotFlyingTimeMinusIFTSquared.push_back((PilotFlyingTime[ip] - IFT) * (PilotFlyingTime[ip] - IFT));
 	}
 	naxos::NsIntVar V = naxos::NsSum(PilotFlyingTimeMinusIFTSquared, 0, PILOTZ);
-	// naxos::NsIntVar minimaize = V + PilotHasWorkInThatDay_minimize;
 	pm.minimize(V);
 	///////////////////////// END OF FLYING TIME OPTIMIZATION
 	pm.addGoal(new naxos::NsgLabeling(FP));
@@ -198,18 +191,19 @@ int main(int argc, char const *argv[]) {
 		}
 		printf("\n");
 	}
-	// int boundd = 0;
-	// int unboundd = 0;
-	// for (int ip = 0; ip < PILOTZ; ++ip) {
-	// 	for (int d = 0; d < DAYZ; ++d) {
-	// 		if (PilotHasWorkInThatDay[ip * DAYZ + d].isBound())
-	// 			boundd++;
-	// 		else
-	// 			unboundd++;
-	// 	}
-	// }
-	// printf("bound: %d, unbound: %d\n", boundd, unboundd);
-	// printf("DAYZ: %d, rolling weeks: %d, V: %ld, minimaize: %ld\n", DAYZ, rolling_weeks, V.value(), minimaize.value());
+	for (int ip = 0; ip < PILOTZ; ++ip) {
+		printf("Pilot %2d:", ip+1);
+		for (int d = 0; d < DAYZ; ++d) {
+			printf(" %ld", PilotHasWorkInThatDay[ip * DAYZ + d].value());
+		}
+		printf("\n");
+	}
+	for (int ip = 0; ip < PILOTZ; ++ip) {
+		for (int iw = 0; iw < ROLLING_WEEKS; ++iw) {
+			printf("Pilot %d busy days in week %d: %ld\n", ip+1, iw+1, PilotBusyDaysInRollingWeek[ip * ROLLING_WEEKS + iw].value());
+		}
+	}
+	printf("DAYZ: %d, rolling weeks: %d, V: %ld\n", DAYZ, ROLLING_WEEKS, V.value());
 	/////////////////////////////////////////////////////////////////
 
 	for (int i = 0; i < (int) flight_plans_vector->size(); ++i)
