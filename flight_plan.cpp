@@ -119,3 +119,28 @@ float calculate_IFT(std::vector<flightPlan*>* flight_plans_vector, int pilots) {
 	}
 	return((float) total_flying_time / (float) pilots);
 }
+
+int get_number_of_rolling_weeks(std::vector<flightPlan*>* flight_plans_vector) {
+	// Find earliest start date, and latest end date.
+	// Find how many days they span over.
+	// If it's 7 or less, return 1.
+	// If it's 8 or more, return (DAYS - 6)
+	int days = get_number_of_days(flight_plans_vector);
+	if (days >= 8)
+		return(days - 6);
+	else
+		return(1);
+}
+
+int get_number_of_days(std::vector<flightPlan*>* flight_plans_vector) {
+	// Use minutes from GLOBAL_START_DATE, convert to days, add 1 if there's minutes left.
+	int max_minutes = flight_plans_vector->at(0)->end;
+	for (int i = 1; i < (int) flight_plans_vector->size(); ++i) {
+		if (flight_plans_vector->at(i)->end > max_minutes)
+			max_minutes = flight_plans_vector->at(i)->end;
+	}
+	int days = max_minutes / 1440;
+	if (max_minutes % 1440 > 0)
+		days++;
+	return(days);
+}
