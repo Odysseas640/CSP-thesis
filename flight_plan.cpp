@@ -144,3 +144,11 @@ int get_number_of_days(std::vector<flightPlan*>* flight_plans_vector) {
 		days++;
 	return(days);
 }
+
+int FP_touches_day(flightPlan* FP, int d) {
+	if ((FP->start >= d * 1440 && FP->start < (d + 1) * 1440)
+	|| (FP->end >= d * 1440 && FP->end < (d + 1) * 1440))
+		return(1);
+	else
+		return 0;
+}

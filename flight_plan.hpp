@@ -15,9 +15,14 @@ typedef struct {
 } DateTime;
 
 typedef struct {
+	int sequence; // 1st flight, 2nd, 3rd, 4th.
+	DateTime startDateTime;
+	DateTime endDateTime;
+} Flight;
+
+typedef struct {
 	int ID;
-	// char startAirport[4]; // They're all ATH
-	// char endAirport[4];
+	// std::vector<Flight*>* flights;
 	DateTime startDateTime;
 	DateTime endDateTime;
 	int start; // Minutes from GLOBAL_START_DATE
@@ -32,4 +37,5 @@ float calculate_IFT(std::vector<flightPlan*>*, int);
 int get_flight_duration(char*);
 int get_number_of_rolling_weeks(std::vector<flightPlan*>*);
 int get_number_of_days(std::vector<flightPlan*>*);
+int FP_touches_day(flightPlan*, int);
 #endif
