@@ -36,4 +36,6 @@ crewas
 *.dot
 *.dot.pdf
 view_graph.py
-notes.txt
+*.txt
+*.png
+*.pdf
