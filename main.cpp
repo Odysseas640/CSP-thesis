@@ -222,10 +222,26 @@ int main(int argc, char const *argv[]) {
 			// 	pm.add(PilotBusyDaysInRollingWeek[ip * ROLLING_WEEKS_2 + iw] <= 5 || naxos::NsSum(PilotHasWorkInThatDay, ip * DAYZ_2 + iw, iexd) == 0);
 			// }
 			// printf("iw: %d, ROLLING_WEEKS: %d, ROLLING_WEEKS_2: %d\n", iw, ROLLING_WEEKS, ROLLING_WEEKS_2);
-			if (iw >= ROLLING_WEEKS)
-				pm.add(PilotBusyDaysInRollingWeek[ip * ROLLING_WEEKS_2 + iw] <= 5 || naxos::NsSum(PilotHasWorkInThatDay, ip * DAYZ_2 + iw +7-extra_days, ROLLING_WEEKS_2 - iw) == 0);
-			else
-				pm.add(PilotBusyDaysInRollingWeek[ip * ROLLING_WEEKS_2 + iw] <= 5);
+			// if (iw >= ROLLING_WEEKS) { // If this is one of the "extra" rolling weeks
+			// // last normal week | extra days
+			// 	//    a b c d e f g|h i j
+			// 	// A  1 2 3 4 5 6 7|# # #
+			// 	// B  - 1 2 3 4 5 6|7 # #  if h has no FP, nullify with || PilotHasWorkInThatDay(h)==0. Meaning, if h has no FP, nullify constraint.
+			// 	// C  - - 1 2 3 4 5|6 7 #  if h has no FP, nullify
+			// 	// D  - - - 1 2 3 4|5 6 7  if h has no FP, nullify
+			// 	// In B, just check h if it has an FP. No need to check i and j, because C and D will check those.
+			// 	// -- I think I should abandon this, and just count rolling weeks with the extra days for everyone, regardless if they have an FP in the extra days or not.
+			// 	// --...because, the problem was that the days off in the "extra" days, might allow the last "normal" days to get too many working days.
+			// 	// --...but they won't, because the "normal" weeks will take care of that.
+			// 	// --...too many busy days is a problem. Too many days off is OK.
+			// 	int offset = ip * DAYZ_2 + iw +7-extra_days;
+			// 	int length = ROLLING_WEEKS_2 - iw;
+			// 	printf("iw: %d, NsSum(#####, %d, %d)\n", iw, offset, length);
+			// 	// If pilot has no work in the "extra" days that this rolling week contains, then this week's constraint is nullified.
+			// 	pm.add(PilotBusyDaysInRollingWeek[ip * ROLLING_WEEKS_2 + iw] <= 5 || naxos::NsSum(PilotHasWorkInThatDay, offset, length) == 0);
+			// }
+			// else
+			// 	pm.add(PilotBusyDaysInRollingWeek[ip * ROLLING_WEEKS_2 + iw] <= 5);
 			// IDEA: Subtract from 5, the number of consecutive days, from the latest day after DAYZ that he has work, til endtime.
 			// for example, DAYZ=5, DAYZ_2=8, and last day he has work is 6. So it's 5-2=3, instead of 5, in the last rolling week.
 			// in the second to last rolling week, it's 5-1=4.
