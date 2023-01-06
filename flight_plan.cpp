@@ -13,7 +13,7 @@ void print(const flightPlan* f) {
 	print(f->startDateTime);
 	printf(" - ");
 	print(f->endDateTime);
-	printf(" - ft %d\n", f->flying_time);
+	printf(" - ft %d", f->flying_time);
 }
 
 int read_file_into_vector(std::vector<flightPlan*>* FPvector, char* pairings_file, DateTime& starttime_dt, DateTime& endtime_dt) {
@@ -61,7 +61,7 @@ int read_file_into_vector(std::vector<flightPlan*>* FPvector, char* pairings_fil
 	fclose(fp);
 	if (line)
 		free(line);
-	printf("in range: %d, out of range: %d\n", in_range, out_of_range);
+	// printf("in range: %d, out of range: %d\n", in_range, out_of_range);
 	return FPs_read;
 }
 
@@ -149,7 +149,7 @@ void get_number_of_rolling_weeks(int& weeks, int& weeks_2, int days, int days_2)
 	else
 		weeks_2 = 1;
 }
-int get_number_of_days(int& days_to_enddate, int& days_to_latest_flight_end, int& extra_days, std::vector<flightPlan*>* FPvector, char* starttime, char* endtime) {
+int get_number_of_days(int& DAYZ, int& DAYZ_2, int& extra_days, std::vector<flightPlan*>* FPvector, char* starttime, char* endtime) {
 	if (FPvector->size() == 0) {
 		printf("ERROR: No flight plans have been read.\n");
 		return -1;
@@ -167,21 +167,23 @@ int get_number_of_days(int& days_to_enddate, int& days_to_latest_flight_end, int
 			latest_FP_end.minute = FPvector->at(i)->endDateTime.minute;
 		}
 	}
-	int minutes_to_latest_flight_end = get_minutes(starttime, latest_FP_end);
-	printf("Minutes from start date 00:00 to latest flight end: %d\n", minutes_to_latest_flight_end);
-	days_to_latest_flight_end = minutes_to_latest_flight_end / 1440;
-	if (minutes_to_latest_flight_end % 1440 > 0)
-		days_to_latest_flight_end++;
+	int minutes_from_starttime_to_latest_flight_end = get_minutes(starttime, latest_FP_end);
+	// printf("Minutes from start date 00:00 to latest flight end: %d\n", minutes_from_starttime_to_latest_flight_end);
+	DAYZ_2 = minutes_from_starttime_to_latest_flight_end / 1440;
+	if (minutes_from_starttime_to_latest_flight_end % 1440 > 0)
+		DAYZ_2++;
 	////////////////////////////////////
 	// Create a DateTime struct from endtime, and use get_minutes function.
 	DateTime endtime_dt;
 	fill_time_struct(endtime_dt, endtime);
-	int minutes_to_enddate = get_minutes(starttime, endtime_dt);
-	printf("Minutes from start date 00:00 to enddate: %d\n", minutes_to_enddate);
-	days_to_enddate = minutes_to_enddate / 1440;
-	if (minutes_to_enddate % 1440 > 0)
-		days_to_enddate++;
-	extra_days = days_to_latest_flight_end - days_to_enddate;
+	int minutes_from_starttime_to_endtime = get_minutes(starttime, endtime_dt);
+	// printf("Minutes from start date 00:00 to enddate: %d\n", minutes_from_starttime_to_endtime);
+	DAYZ = minutes_from_starttime_to_endtime / 1440;
+	if (minutes_from_starttime_to_endtime % 1440 > 0)
+		DAYZ++;
+	if (DAYZ > DAYZ_2)
+		DAYZ_2 = DAYZ;
+	extra_days = DAYZ_2 - DAYZ;
 	return 0;
 }
 

@@ -1,6 +1,8 @@
 CC = g++ -std=c++11
 CFLAGS = -Wall -ggdb3
 
+all: crewas autotest
+
 crewas: main.o check_assignment.o check_assignment.hpp flight_plan.o flight_plan.hpp problemmanager.o array_constraints.o bitset_domain.o expressions.o intvar.o var_constraints.o non_mini_solver_expressions.o non_mini_solver_constraints.o
 	$(CC) -o crewas main.o check_assignment.o flight_plan.o problemmanager.o array_constraints.o bitset_domain.o expressions.o intvar.o var_constraints.o non_mini_solver_expressions.o non_mini_solver_constraints.o
 
@@ -40,5 +42,5 @@ problemmanager.o: naxos-2.0.5/core/problemmanager.cpp
 clean:
 	rm -f crewas *.o
 
-# curve.o: Fred/src/curve.cpp Fred/include/curve.hpp
-# 	$(CC) $(CFLAGS) -c Fred/src/curve.cpp
+autotest: autotest.cpp
+	$(CC) $(CFLAGS) -o autotest autotest.cpp -fopenmp

@@ -8,6 +8,7 @@ bool sort_by_startDateTime(const flightPlan* fp1, const flightPlan* fp2) {
 }
 
 int check_assignment(const std::vector<flightPlan*>* FPvector, const DateTime& starttime_dt, const DateTime& endtime_dt) {
+	printf("-----  CHECKING ASSIGNMENT -----\n");
 	// A vector of maps. Every map contains the flight plan IDs that have been assigned to one pilot.
 	// That's the key. The value will be a pointer to a flightPlan struct, found from FPvector vector.
 	std::vector<std::map<int, flightPlan*>*> vector_of_maps;
@@ -59,8 +60,12 @@ int check_assignment(const std::vector<flightPlan*>* FPvector, const DateTime& s
 	}
 
 	// Calculate V for assignments
-	float IFT = calculate_IFT(FPvector, lines_read);
-	printf("IFT: %f\n", IFT);
+	// float IFT_float = calculate_IFT(FPvector, lines_read);
+	// printf("IFT_float: %f\n", IFT_float);
+	// The correct type for IFT would be "float", but Naxos Solver can only use "int" when calculating assignments,
+	// so if I used "float" here, the number would be different and it would look like there's a bug.
+	int IFT = calculate_IFT(FPvector, lines_read);
+	printf("IFT: %d\n", IFT);
 	float V = 0;
 	for (int im = 0; im < (int) vector_of_maps.size(); ++im) {
 		// Calculate flying time for this pilot
@@ -71,7 +76,9 @@ int check_assignment(const std::vector<flightPlan*>* FPvector, const DateTime& s
 			pilot_flying_time += im2->second->flying_time;
 		}
 		// printf("Flying time for pilot %d / %ld: %d\n", im+1, vector_of_maps.size(), pilot_flying_time);
-		V += (IFT - pilot_flying_time) * (IFT - pilot_flying_time);
+		// int PilotFlyingTimeMinusIFTSquared = (IFT - pilot_flying_time) * (IFT - pilot_flying_time);
+		// printf("Pilot %d: %d\n", im, PilotFlyingTimeMinusIFTSquared);
+		// V += PilotFlyingTimeMinusIFTSquared;
 	}
 	printf("V: %f\n", V);
 
@@ -87,8 +94,10 @@ int check_assignment(const std::vector<flightPlan*>* FPvector, const DateTime& s
 		// Now FPs in each vector should be sorted by startDateTime.
 		// DIAGNOSTIC
 		for (int j = 0; j < (int) vector_of_vectors->at(i)->size() - 1; ++j) { // Check if they're sorted right
-			if (compare_dates(vector_of_vectors->at(i)->at(j)->startDateTime, vector_of_vectors->at(i)->at(j+1)->startDateTime) < 0)
+			if (compare_dates(vector_of_vectors->at(i)->at(j)->startDateTime, vector_of_vectors->at(i)->at(j+1)->startDateTime) < 0) {
 				printf("mistake\n");
+				exit(1);
+			}
 		}
 		// END OF DIAGNOSTIC
 	}
@@ -102,6 +111,7 @@ int check_assignment(const std::vector<flightPlan*>* FPvector, const DateTime& s
 	for (int i = 0; i < (int) vector_of_vectors->size(); ++i)
 		delete vector_of_vectors->at(i);
 	delete vector_of_vectors;
+	printf("-----  ASSIGNMENT OK -----\n");
 	printf("-------------------------------------------- end of check_assignment function\n");
 	return 0;
 }
@@ -115,7 +125,7 @@ int check_assignments_11h_gap(const std::vector<std::vector<flightPlan*>*>* vect
 				printf("ERROR: 2 assignments overlap.\n");
 				exit(1);
 			}
-			// Check if this FP and the next FP are 660+ minutes apart
+			// Check if this FP and the next FP are >=660 minutes apart
 			if (vector_of_vectors->at(i)->at(j + 1)->start - vector_of_vectors->at(i)->at(j)->end < 660) {
 				printf("ERROR: 2 assignments don't have a gap of 11 hours.\n");
 				exit(1);
@@ -134,7 +144,7 @@ int check_assignments_rolling_weeks(const std::vector<std::vector<flightPlan*>*>
 		int last_flight_end_time = vector_of_vectors->at(ip)->back()->end;
 		int first_day = first_flight_start_time / 1440;
 		int last_day = last_flight_end_time / 1440;
-		printf("Pilot %d start: %d (%d), end: %d (%d)\n", ip, first_flight_start_time, first_day, last_flight_end_time, last_day);
+		// printf("Pilot %d start: %d (%d), end: %d (%d)\n", ip, first_flight_start_time, first_day, last_flight_end_time, last_day);
 		if (last_day - first_day <= 5) // "Days off" constraint doesn't matter if there's only 5 days.
 			continue;
 		int days_6_or_7 = 7; // This pilot might have 6 days of work, so then we have one rolling week with 6 days.
@@ -158,31 +168,54 @@ int check_assignments_rolling_weeks(const std::vector<std::vector<flightPlan*>*>
 				delete[] busy_days_in_rolling_week;
 				exit(1);
 			}
-			else
-				printf("Pilot %d has %d busy days in rolling week %d\n", ip, busy_days, d);
+			// else
+			// 	printf("Pilot %d has %d busy days in rolling week %d\n", ip, busy_days, d);
 		}
 	}
 	delete[] busy_days_in_rolling_week;
 	return 0;
 }
 
-void print_assignments_to_file(const std::vector<flightPlan*>* FPvector, const naxos::NsIntVarArray& PilotAssignments, int pilotz, int FPvector_size) {
+void copy_to_final_assignments(std::vector< std::vector<int> * > *&PilotAssignments_Final_Result, const std::vector<flightPlan*>* FPvector, const naxos::NsIntVarArray& PilotAssignments, int pilotz) {
+	// First time this function is called, allocate vectors
+	if (PilotAssignments_Final_Result == NULL) {
+		PilotAssignments_Final_Result = new std::vector< std::vector<int> * >;
+		for (int i = 0; i < pilotz; ++i)
+			PilotAssignments_Final_Result->push_back(new std::vector<int>);
+	}
+
+	for (int ip = 0; ip < pilotz; ++ip) {
+		for (int ifp = 0; ifp < (int) FPvector->size(); ++ifp) {
+			if (PilotAssignments[ip * ((int) FPvector->size()) + ifp].value() == 1)
+				PilotAssignments_Final_Result->at(ip)->push_back(FPvector->at(ifp)->ID);
+		}
+	}
+}
+
+void print_final_assignments(const std::vector< std::vector<int> * > *PilotAssignments_Final_Result) {
+	for (int ip = 0; ip < (int) PilotAssignments_Final_Result->size(); ++ip) {
+		for (int ifp = 0; ifp < (int) PilotAssignments_Final_Result->at(ip)->size(); ++ifp) {
+			if (ifp == 0)
+				printf("%04d", PilotAssignments_Final_Result->at(ip)->at(ifp));
+			else
+				printf(" %04d", PilotAssignments_Final_Result->at(ip)->at(ifp));
+		}
+		printf("\n");
+	}
+}
+
+void print_final_assignments_to_file(const std::vector< std::vector<int> * > *PilotAssignments_Final_Result) {
 	FILE* fp = fopen("test_assignmentz.txt", "w");
 	if (fp == NULL)
 		exit(EXIT_FAILURE);
-	for (int ip = 0; ip < pilotz; ++ip) {
-		int first_print_in_line = 1;
-		for (int ifp = 0; ifp < (int) FPvector_size; ++ifp) {
-			if (PilotAssignments[ip * FPvector_size + ifp].value() == 1) {
-				if (first_print_in_line == 1)
-					fprintf(fp, "%04d", FPvector->at(ifp)->ID);
-				else
-					fprintf(fp, " %04d", FPvector->at(ifp)->ID);
-				first_print_in_line = 0;
-			}
+	for (int ip = 0; ip < (int) PilotAssignments_Final_Result->size(); ++ip) {
+		for (int ifp = 0; ifp < (int) PilotAssignments_Final_Result->at(ip)->size(); ++ifp) {
+			if (ifp == 0)
+				fprintf(fp, "%04d", PilotAssignments_Final_Result->at(ip)->at(ifp));
+			else
+				fprintf(fp, " %04d", PilotAssignments_Final_Result->at(ip)->at(ifp));
 		}
-		if (first_print_in_line == 0)
-			fprintf(fp, "\n");
+		fprintf(fp, "\n");
 	}
 	fclose(fp);
 }
