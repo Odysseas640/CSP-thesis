@@ -4,8 +4,7 @@
 #include "naxos-2.0.5/core/naxos.h"
 #include "flight_plan.hpp"
 #include "check_assignment.hpp"
-#define ITERATIONZ 1
-int read_arguments(char argc, const char* argv[], int& PILOTZ, char*& pairings_file, char*& starttime, char*& endtime, int& check_assignment_i);
+int read_arguments(char argc, const char* argv[], int& PILOTZ, char*& pairings_file, char*& starttime, char*& endtime, int& check_assignment_i, int& naxos_time_limit_seconds, int& iterations_limit);
 // make && valgrind ./crewas -p Pairings.txt -n 24
 // make && valgrind --leak-check=full ./crewas -i -p Pairings.txt -n 24 < test_assignmentz.txt
 
@@ -18,13 +17,15 @@ int main(int argc, char const *argv[]) {
 	char* starttime = NULL;
 	char* endtime = NULL;
 	int check_assignment_i = 0;
+	int naxos_time_limit_seconds = 0;
+	int iterations_limit = 987654321;
 	// Read arguments
-	read_arguments(argc, argv, PILOTZ, pairings_file, starttime, endtime, check_assignment_i);
+	read_arguments(argc, argv, PILOTZ, pairings_file, starttime, endtime, check_assignment_i, naxos_time_limit_seconds, iterations_limit);
 
-	starttime = new char[17]; // FOR TESTING
-	endtime = new char[17];
-	strcpy(starttime, "2011-11-01/00:00");
-	strcpy(endtime, "2011-11-02/23:59");
+	// starttime = new char[17]; // FOR TESTING
+	// endtime = new char[17];
+	// strcpy(starttime, "2011-11-01/00:00");
+	// strcpy(endtime, "2011-11-07/23:59");
 	// printf("STARTTIME: %s, ENDTIME: %s\n", starttime, endtime);
 
 	DateTime starttime_dt, endtime_dt; // Convert these, so they're easier to manage.
@@ -82,17 +83,10 @@ int main(int argc, char const *argv[]) {
 			/* i ends before j starts, and j starts >=660 after i ends */
 			|| (FPvector->at(i)->end < FPvector->at(j)->start && FPvector->at(j)->start - FPvector->at(i)->end >= 660)
 			/* j ends before i starts, and i starts >=660 after j ends */
-			|| (FPvector->at(j)->end < FPvector->at(i)->start && FPvector->at(i)->start - FPvector->at(j)->end >= 660)) {
+			|| (FPvector->at(j)->end < FPvector->at(i)->start && FPvector->at(i)->start - FPvector->at(j)->end >= 660))
 				continue;
-			}
-			else {
-				// printf("Incompatible: ");
-				// print(FPvector->at(i));
-				// printf("  --  ");
-				// print(FPvector->at(j));
-				// printf("\n");
+			else
 				pm.add(FP[i] != FP[j]);
-			}
 		}
 	}
 
@@ -157,7 +151,7 @@ int main(int argc, char const *argv[]) {
 					                               + (PilotHasWorkInThatDay[ip * DAYZ_2 + iw + 4] > 0)
 					                               + (PilotHasWorkInThatDay[ip * DAYZ_2 + iw + 5] > 0));
 				// Step 4:
-				// Constraint: Every week must have <= 5 busy days.
+				// Constraint: Every rolling week must have <= 5 busy days.
 				pm.add(PilotBusyDaysInRollingWeek[ip * ROLLING_WEEKS_2 + iw] <= 5);
 				// printf("iw: %d, ROLLING_WEEKS: %d, ROLLING_WEEKS_2: %d\n", iw, ROLLING_WEEKS, ROLLING_WEEKS_2);
 				//last normal week | extra days
@@ -197,71 +191,66 @@ int main(int argc, char const *argv[]) {
 	pm.addGoal(new naxos::NsgLabeling(FP));
 
 	std::vector< std::vector<int> * > *PilotAssignments_Final_Result = NULL;
-	int iterationz = 0;
-	// pm.timeLimit(10);
-	while (pm.nextSolution() != false) {
+	int i = 0;
+	if (naxos_time_limit_seconds > 0)
+		pm.timeLimit(naxos_time_limit_seconds);
+	while (i++ < iterations_limit && pm.nextSolution() != false) {
 		gettimeofday(&program_end, NULL);
 		printf("%ld:%02ld:%02ld", (program_end.tv_sec - program_start.tv_sec)/3600, ((program_end.tv_sec - program_start.tv_sec)/60)%60, (program_end.tv_sec - program_start.tv_sec)%60);
-		printf("  --  SOLUTION FOUND, V = %ld, i+1: %d\n", V.value(), iterationz+1);
+		printf("  --  SOLUTION FOUND, V = %ld, i: %d\n", V.value(), i);
 
 		// Copy Pilot Assignments to Final Result, as recommended in the Naxos Solver manual.
 		copy_to_final_assignments(PilotAssignments_Final_Result, FPvector, PilotAssignments, PILOTZ);
-
-		if (++iterationz >= ITERATIONZ)
-			break;
 	}
-	// else
-	// 	printf("\n  --  NO SOLUTION FOUND  --\n\n");
 	// print_final_assignments(PilotAssignments_Final_Result);
-	print_final_assignments_to_file(PilotAssignments_Final_Result);
+	// print_final_assignments_to_file(PilotAssignments_Final_Result);
 
-	// printf("\n  --  PilotFlyingTime  --\n");
-	// for (int ip = 0; ip < PILOTZ; ++ip) {
-	// 	printf("Pilot %d has flying time %ld and FPs (list):", ip + 1, PilotFlyingTime[ip].value());
-	// 	for (int ifp = 0; ifp < (int) FPvector->size(); ++ifp) {
-	// 		if (PilotAssignments[ip * FPvector->size() + ifp].value() == 1)
-	// 			printf(" %d", FPvector->at(ifp)->ID);
-	// 		// DIAGNOSTIC FOR STEP 1
-	// 		if (PilotAssignments[ip * FPvector->size() + ifp].value() == true && FP[ifp].value() != ip+1) {
-	// 			printf("MISTAKE\n"); // Boolean == 1, but FP doesn't have this pilot, so MISTAKE
-	// 			exit(1);
-	// 		}
-	// 		if (PilotAssignments[ip * FPvector->size() + ifp].value() == false && FP[ifp].value() == ip+1) {
-	// 			printf("MISTAKE\n");
-	// 			exit(1);
-	// 		}
-	// 		// END OF DIAGNOSTIC FOR STEP 1
-	// 	}
-	// 	printf("\n");
-	// }
+	printf("\n  --  PilotFlyingTime and FPs  --\n");
+	for (int ip = 0; ip < PILOTZ; ++ip) {
+		printf("Pilot %d has flying time %ld and FPs (list):", ip + 1, PilotFlyingTime[ip].value());
+		for (int ifp = 0; ifp < (int) FPvector->size(); ++ifp) {
+			if (PilotAssignments[ip * FPvector->size() + ifp].value() == 1)
+				printf(" %d", FPvector->at(ifp)->ID);
+			// DIAGNOSTIC FOR STEP 1
+			if (PilotAssignments[ip * FPvector->size() + ifp].value() == true && FP[ifp].value() != ip+1) {
+				printf("MISTAKE\n"); // Boolean == 1, but FP doesn't have this pilot, so MISTAKE
+				exit(1);
+			}
+			if (PilotAssignments[ip * FPvector->size() + ifp].value() == false && FP[ifp].value() == ip+1) {
+				printf("MISTAKE\n");
+				exit(1);
+			}
+			// END OF DIAGNOSTIC FOR STEP 1
+		}
+		printf("\n");
+	}
 
-	// printf("  --  PilotHasWorkInThatDay  --\n");
-	// for (int ip = 0; ip < PILOTZ; ++ip) {
-	// 	printf("Pilot %2d:", ip+1);
-	// 	for (int d = 0; d < DAYZ_2; ++d) {
-	// 		if (DAYZ_2 > DAYZ && d == DAYZ)
-	// 			printf(" |");
-	// 		printf(" %ld", PilotHasWorkInThatDay[ip * DAYZ_2 + d].value());
-	// 	}
-	// 	printf("\n");
-	// }
+	printf("  --  PilotHasWorkInThatDay  --\n");
+	for (int ip = 0; ip < PILOTZ; ++ip) {
+		printf("Pilot %2d:", ip+1);
+		for (int d = 0; d < DAYZ_2; ++d) {
+			if (DAYZ_2 > DAYZ && d == DAYZ)
+				printf(" |");
+			printf(" %ld", PilotHasWorkInThatDay[ip * DAYZ_2 + d].value());
+		}
+		printf("\n");
+	}
 
-	// printf("  --  PilotBusyDaysInRollingWeek  --\n");
-	// if (DAYZ_2 >= 6) {
-	// 	for (int ip = 0; ip < PILOTZ; ++ip) {
-	// 		printf("Pilot %d busy days in rolling weeks:", ip+1);
-	// 		for (int iw = 0; iw < ROLLING_WEEKS_2; ++iw) {
-	// 			if (ROLLING_WEEKS_2 > ROLLING_WEEKS && iw == ROLLING_WEEKS)
-	// 				printf(" |");
-	// 			printf(" %ld", PilotBusyDaysInRollingWeek[ip * ROLLING_WEEKS_2 + iw].value());
-	// 		}
-	// 		printf("\n");
-	// 	}
-	// }
-	// else
-	// 	printf("N/A\n");
+	printf("  --  PilotBusyDaysInRollingWeek  --\n");
+	if (DAYZ_2 >= 6) {
+		for (int ip = 0; ip < PILOTZ; ++ip) {
+			printf("Pilot %d busy days in rolling weeks:", ip+1);
+			for (int iw = 0; iw < ROLLING_WEEKS_2; ++iw) {
+				if (ROLLING_WEEKS_2 > ROLLING_WEEKS && iw == ROLLING_WEEKS)
+					printf(" |");
+				printf(" %ld", PilotBusyDaysInRollingWeek[ip * ROLLING_WEEKS_2 + iw].value());
+			}
+			printf("\n");
+		}
+	}
+	else
+		printf("N/A\n");
 
-	printf("V: %ld, ", V.value());
 	printf("IFT (as float): %f, DAYZ: %d / %d, ROLLING_WEEKS: %d / %d\n", IFT, DAYZ, DAYZ_2, ROLLING_WEEKS, ROLLING_WEEKS_2);
 	/////////////////////////////////////////////////////////////////
 
@@ -271,17 +260,22 @@ int main(int argc, char const *argv[]) {
 	delete[] pairings_file;
 	delete[] starttime;
 	delete[] endtime;
-	for (int i = 0; i < PILOTZ; ++i)
-		delete PilotAssignments_Final_Result->at(i);
-	delete PilotAssignments_Final_Result;
+	if (PilotAssignments_Final_Result != NULL) {
+		for (int i = 0; i < PILOTZ; ++i)
+			delete PilotAssignments_Final_Result->at(i);
+		delete PilotAssignments_Final_Result;
+	}
 	gettimeofday(&program_end, NULL);
 	long seconds = (program_end.tv_sec - program_start.tv_sec);
 	long micros = ((seconds * 1000000) + program_end.tv_usec) - (program_start.tv_usec);
+	float time_taken = ((float) micros) / 1000000;
+	if (naxos_time_limit_seconds > 0 && time_taken >= naxos_time_limit_seconds)
+		printf("Time limit reached.\n");
 	printf("Finished. Time taken: %.2f seconds.\n", ((float) micros) / 1000000);
 	return 0;
 }
 
-int read_arguments(char argc, const char* argv[], int& PILOTZ, char*& pairings_file, char*& starttime, char*& endtime, int& check_assignment_i) {
+int read_arguments(char argc, const char* argv[], int& PILOTZ, char*& pairings_file, char*& starttime, char*& endtime, int& check_assignment_i, int& naxos_time_limit_seconds, int& iterations_limit) {
 	for (int i = 1; i < argc; i++) {
 		if (strcmp(argv[i],"-n") == 0) {
 			for (int j = 0; j < (int) strlen(argv[i+1]); ++j) {
@@ -297,8 +291,8 @@ int read_arguments(char argc, const char* argv[], int& PILOTZ, char*& pairings_f
 			strcpy(pairings_file, argv[i+1]);
 		}
 		else if (strcmp(argv[i],"-s") == 0) {
-			strncpy(starttime, argv[i+1], 16);
 			starttime = new char[17];
+			strncpy(starttime, argv[i+1], 16);
 		}
 		else if (strcmp(argv[i],"-e") == 0) {
 			endtime = new char[17];
@@ -306,6 +300,10 @@ int read_arguments(char argc, const char* argv[], int& PILOTZ, char*& pairings_f
 		}
 		else if (strcmp(argv[i],"-i") == 0)
 			check_assignment_i = 1;
+		else if (strcmp(argv[i],"-t") == 0)
+			naxos_time_limit_seconds = atoi(argv[i+1]);
+		else if (strcmp(argv[i],"-it") == 0)
+			iterations_limit = atoi(argv[i+1]);
 	}
 	if (PILOTZ < 0) {
 		printf("Error: No number of pilots specified.\n");
@@ -315,13 +313,13 @@ int read_arguments(char argc, const char* argv[], int& PILOTZ, char*& pairings_f
 		printf("Error: No input file specified.\n");
 		exit(1);
 	}
-	// if (starttime == NULL) {
-	// 	printf("Error: No start time specified.\n");
-	// 	exit(1);
-	// }
-	// if (endtime == NULL) {
-	// 	printf("Error: No end time specified.\n");
-	// 	exit(1);
-	// }
+	if (starttime == NULL) {
+		printf("Error: No start time specified.\n");
+		exit(1);
+	}
+	if (endtime == NULL) {
+		printf("Error: No end time specified.\n");
+		exit(1);
+	}
 	return 0;
 }
