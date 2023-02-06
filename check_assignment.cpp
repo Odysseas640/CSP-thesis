@@ -65,7 +65,7 @@ int check_assignment(const std::vector<flightPlan*>* FPvector, const DateTime& s
 	// The correct type for IFT would be "float", but Naxos Solver can only use "int" when calculating assignments,
 	// so if I used "float" here, the number would be different and it would look like there's a bug.
 	int IFT = calculate_IFT(FPvector, lines_read);
-	printf("IFT: %d\n", IFT);
+	// printf("IFT: %d\n", IFT);
 	float V = 0;
 	for (int im = 0; im < (int) vector_of_maps.size(); ++im) {
 		// Calculate flying time for this pilot
@@ -75,12 +75,12 @@ int check_assignment(const std::vector<flightPlan*>* FPvector, const DateTime& s
 		for (im2 = vector_of_maps.at(im)->begin(); im2 != vector_of_maps.at(im)->end(); ++im2) {
 			pilot_flying_time += im2->second->flying_time;
 		}
-		// printf("Flying time for pilot %d / %ld: %d\n", im+1, vector_of_maps.size(), pilot_flying_time);
-		// int PilotFlyingTimeMinusIFTSquared = (IFT - pilot_flying_time) * (IFT - pilot_flying_time);
+		printf("Flying time for pilot %d / %ld: %d\n", im+1, vector_of_maps.size(), pilot_flying_time);
+		int PilotFlyingTimeMinusIFTSquared = (IFT - pilot_flying_time) * (IFT - pilot_flying_time);
 		// printf("Pilot %d: %d\n", im, PilotFlyingTimeMinusIFTSquared);
-		// V += PilotFlyingTimeMinusIFTSquared;
+		V += PilotFlyingTimeMinusIFTSquared;
 	}
-	printf("V: %f\n", V);
+	// printf("V: %f\n", V);
 
 	// Make a vector_of_vectors and copy maps to vectors, and then sort the vectors by start_date with a custom comparison function.
 	std::vector<std::vector<flightPlan*>*>* vector_of_vectors = new std::vector<std::vector<flightPlan*>*>;
@@ -105,13 +105,13 @@ int check_assignment(const std::vector<flightPlan*>* FPvector, const DateTime& s
 	check_assignments_11h_gap(vector_of_vectors);
 	check_assignments_rolling_weeks(vector_of_vectors);
 
+	printf("-----  ASSIGNMENT OK, %ld pilots, V: %f -----\n", vector_of_vectors->size(), V);
 	/////////// Free stuff
 	for (int i = 0; i < (int) vector_of_maps.size(); ++i)
 		delete vector_of_maps.at(i);
 	for (int i = 0; i < (int) vector_of_vectors->size(); ++i)
 		delete vector_of_vectors->at(i);
 	delete vector_of_vectors;
-	printf("-----  ASSIGNMENT OK -----\n");
 	printf("-------------------------------------------- end of check_assignment function\n");
 	return 0;
 }
@@ -183,6 +183,9 @@ void copy_to_final_assignments(std::vector< std::vector<int> * > *&PilotAssignme
 		for (int i = 0; i < pilotz; ++i)
 			PilotAssignments_Final_Result->push_back(new std::vector<int>);
 	}
+	else
+		for (int i = 0; i < pilotz; ++i)
+			PilotAssignments_Final_Result->at(i)->clear();
 
 	for (int ip = 0; ip < pilotz; ++ip) {
 		for (int ifp = 0; ifp < (int) FPvector->size(); ++ifp) {
@@ -193,6 +196,10 @@ void copy_to_final_assignments(std::vector< std::vector<int> * > *&PilotAssignme
 }
 
 void print_final_assignments(const std::vector< std::vector<int> * > *PilotAssignments_Final_Result) {
+	if (PilotAssignments_Final_Result == NULL) {
+		printf("No solution found within time limit.\n");
+		return;
+	}
 	for (int ip = 0; ip < (int) PilotAssignments_Final_Result->size(); ++ip) {
 		for (int ifp = 0; ifp < (int) PilotAssignments_Final_Result->at(ip)->size(); ++ifp) {
 			if (ifp == 0)
@@ -205,6 +212,10 @@ void print_final_assignments(const std::vector< std::vector<int> * > *PilotAssig
 }
 
 void print_final_assignments_to_file(const std::vector< std::vector<int> * > *PilotAssignments_Final_Result) {
+	if (PilotAssignments_Final_Result == NULL) {
+		printf("No solution found within time limit.\n");
+		return;
+	}
 	FILE* fp = fopen("test_assignmentz.txt", "w");
 	if (fp == NULL)
 		exit(EXIT_FAILURE);
