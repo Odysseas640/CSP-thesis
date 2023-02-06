@@ -75,7 +75,7 @@ int check_assignment(const std::vector<flightPlan*>* FPvector, const DateTime& s
 		for (im2 = vector_of_maps.at(im)->begin(); im2 != vector_of_maps.at(im)->end(); ++im2) {
 			pilot_flying_time += im2->second->flying_time;
 		}
-		printf("Flying time for pilot %d / %ld: %d\n", im+1, vector_of_maps.size(), pilot_flying_time);
+		// printf("Flying time for pilot %d / %ld: %d\n", im+1, vector_of_maps.size(), pilot_flying_time);
 		int PilotFlyingTimeMinusIFTSquared = (IFT - pilot_flying_time) * (IFT - pilot_flying_time);
 		// printf("Pilot %d: %d\n", im, PilotFlyingTimeMinusIFTSquared);
 		V += PilotFlyingTimeMinusIFTSquared;

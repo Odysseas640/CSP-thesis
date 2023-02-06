@@ -17,8 +17,6 @@ int main(int argc, char const *argv[]) {
 	char* starttime = NULL;
 	char* endtime = NULL;
 	int check_assignment_i = 0;
-	int naxos_time_limit_seconds = 0;
-	int iterations_limit = 987654321;
 	// Read arguments
 	read_arguments(argc, argv, PILOTZ, pairings_file, starttime, endtime, check_assignment_i, naxos_time_limit_seconds, iterations_limit);
 
@@ -290,7 +288,7 @@ int read_arguments(char argc, const char* argv[], int& PILOTZ, char*& pairings_f
 			pairings_file = new char[strlen(argv[i+1]) + 1];
 			strcpy(pairings_file, argv[i+1]);
 		}
-		else if (strcmp(argv[i],"-s") == 0) { // FIX "DATE/TIME" OR "DATE TIME"
+		else if (strcmp(argv[i],"-s") == 0) {
 			starttime = new char[17];
 			strncpy(starttime, argv[i+1], 16);
 		}

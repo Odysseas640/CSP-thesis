@@ -40,3 +40,4 @@ view_graph.py
 *.png
 *.pdf
 autotest
+reference
