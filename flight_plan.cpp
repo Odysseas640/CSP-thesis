@@ -137,19 +137,15 @@ float calculate_IFT(const std::vector<flightPlan*>* FPvector, int pilots) {
 	return((float) total_flying_time / (float) pilots);
 }
 
-void get_number_of_rolling_weeks(int& weeks, int& weeks_2, int days, int days_2) {
+void get_number_of_rolling_weeks(int& weeks_2, int days_2) {
 	// If it's 7 days or less, return 1 rolling week.
 	// If it's 8 days or more, return (DAYS - 6)
-	if (days >= 8)
-		weeks = days - 6;
-	else
-		weeks = 1;
 	if (days_2 >= 8)
 		weeks_2 = days_2 - 6;
 	else
 		weeks_2 = 1;
 }
-int get_number_of_days(int& DAYZ, int& DAYZ_2, int& extra_days, std::vector<flightPlan*>* FPvector, char* starttime, char* endtime) {
+int get_number_of_days(int& DAYZ_2, int& extra_days, std::vector<flightPlan*>* FPvector, char* starttime, char* endtime) {
 	if (FPvector->size() == 0) {
 		printf("ERROR: No flight plans have been read.\n");
 		return -1;
@@ -178,7 +174,7 @@ int get_number_of_days(int& DAYZ, int& DAYZ_2, int& extra_days, std::vector<flig
 	fill_time_struct(endtime_dt, endtime);
 	int minutes_from_starttime_to_endtime = get_minutes(starttime, endtime_dt);
 	// printf("Minutes from start date 00:00 to enddate: %d\n", minutes_from_starttime_to_endtime);
-	DAYZ = minutes_from_starttime_to_endtime / 1440;
+	int DAYZ = minutes_from_starttime_to_endtime / 1440;
 	if (minutes_from_starttime_to_endtime % 1440 > 0)
 		DAYZ++;
 	if (DAYZ > DAYZ_2)

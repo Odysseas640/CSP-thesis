@@ -29,8 +29,8 @@ int read_file_into_vector(std::vector<flightPlan*>*, char*, DateTime&, DateTime&
 void set_minutes_from_global_start_date(std::vector<flightPlan*>*, char*);
 float calculate_IFT(const std::vector<flightPlan*>*, int);
 int get_flight_duration(char*);
-void get_number_of_rolling_weeks(int&, int&, int, int);
-int get_number_of_days(int&, int&, int&, std::vector<flightPlan*>*, char*, char*);
+void get_number_of_rolling_weeks(int&, int);
+int get_number_of_days(int&, int&, std::vector<flightPlan*>*, char*, char*);
 int FP_touches_day(flightPlan*, int);
 int compare_dates(const DateTime&, const DateTime&);
 int FP_in_range(const DateTime&, const DateTime&, const DateTime&);
