@@ -36,8 +36,6 @@ crewas
 *.dot
 *.dot.pdf
 view_graph.py
-*.txt
 *.png
 *.pdf
 autotest
-reference
