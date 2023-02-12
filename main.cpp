@@ -189,9 +189,6 @@ int main(int argc, char const *argv[]) {
 
 		printf("IFT: %f, days: %d, rolling weeks: %d, extra_days: %d\n", IFT, days, rolling_weeks, extra_days);
 	}
-	for (int i = 0; i < PilotFlyingTime.size(); ++i) {
-		printf("%ld\n", PilotFlyingTime[i].value());
-	}
 	/////////////////////////////////////////////////////////////////
 
 	for (int i = 0; i < (int) FPvector->size(); ++i)
