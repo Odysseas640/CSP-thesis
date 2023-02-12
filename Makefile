@@ -43,7 +43,7 @@ problemmanager.o: naxos-2.0.5/core/problemmanager.cpp
 	$(CC) $(CFLAGS) -c naxos-2.0.5/core/problemmanager.cpp
 
 clean:
-	rm -f crewas *.o
+	rm -f crewas autotest *.o
 
 autotest: autotest.cpp
 	$(CC) $(CFLAGS) -o autotest autotest.cpp -fopenmp
