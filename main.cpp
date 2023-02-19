@@ -14,7 +14,7 @@ int main(int argc, char const *argv[]) {
 	char* endtime = NULL;
 	int check_assignment_i = 0;
 	int naxos_time_limit_seconds = 0;
-	int iterations_limit = 987654321;
+	int iterations_limit = 1;
 	int debug_print = 0;
 	// Read arguments
 	read_arguments(argc, argv, nPilots, pairings_file, starttime, endtime, check_assignment_i, naxos_time_limit_seconds, iterations_limit, debug_print);

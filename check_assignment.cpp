@@ -8,7 +8,7 @@ bool sort_by_startDateTime(const flightPlan* fp1, const flightPlan* fp2) {
 }
 
 int check_assignment(const std::vector<flightPlan*>* FPvector, const DateTime& starttime_dt, const DateTime& endtime_dt) {
-	printf("-----  CHECKING ASSIGNMENT -----\n");
+	printf("-----  CHECKING ASSIGNMENT\n");
 	// A vector of maps. Every map contains the flight plan IDs that have been assigned to one pilot.
 	// That's the key. The value will be a pointer to a flightPlan struct, found from FPvector vector.
 	std::vector<std::map<int, flightPlan*>*> vector_of_maps;
@@ -16,8 +16,11 @@ int check_assignment(const std::vector<flightPlan*>* FPvector, const DateTime& s
 	char* line = NULL;
 	size_t len = 0;
 	while ((getline(&line, &len, stdin)) != -1) {
-		// printf("%s\n", line);
 		vector_of_maps.push_back(new std::map<int, flightPlan*>);
+		if (line[0] == '\n') { // No flight plans in this line, pilot has none.
+			lines_read++;
+			continue;
+		}
 		for (int i = 0; i < (int) strlen(line); i=i+5) { // Flight plan IDs are 5 characters apart.
 			int FP_ID = atoi(line + i);
 			// Put this FP_ID in vector_of_maps.at(i) as a key, and find it in FPvector to put it as a value.
@@ -25,7 +28,6 @@ int check_assignment(const std::vector<flightPlan*>* FPvector, const DateTime& s
 			for (int ifp = 0; ifp < (int) FPvector->size(); ++ifp) {
 				if (FP_ID == FPvector->at(ifp)->ID) {
 					(*vector_of_maps.at(lines_read))[FP_ID] = FPvector->at(ifp);
-					// printf("FP found: %d\n", FP_ID);
 					break;
 				}
 				if (ifp == (int) FPvector->size() - 1) {
@@ -65,7 +67,6 @@ int check_assignment(const std::vector<flightPlan*>* FPvector, const DateTime& s
 	// The correct type for IFT would be "float", but Naxos Solver can only use "int" when calculating assignments,
 	// so if I used "float" here, the number would be different and it would look like there's a bug.
 	int IFT = calculate_IFT(FPvector, lines_read);
-	// printf("IFT: %d\n", IFT);
 	float V = 0;
 	for (int im = 0; im < (int) vector_of_maps.size(); ++im) {
 		// Calculate flying time for this pilot
@@ -75,12 +76,9 @@ int check_assignment(const std::vector<flightPlan*>* FPvector, const DateTime& s
 		for (im2 = vector_of_maps.at(im)->begin(); im2 != vector_of_maps.at(im)->end(); ++im2) {
 			pilot_flying_time += im2->second->flying_time;
 		}
-		// printf("Flying time for pilot %d / %ld: %d\n", im+1, vector_of_maps.size(), pilot_flying_time);
 		int PilotFlyingTimeMinusIFTSquared = (IFT - pilot_flying_time) * (IFT - pilot_flying_time);
-		// printf("Pilot %d: %d\n", im, PilotFlyingTimeMinusIFTSquared);
 		V += PilotFlyingTimeMinusIFTSquared;
 	}
-	// printf("V: %f\n", V);
 
 	// Make a vector_of_vectors and copy maps to vectors, and then sort the vectors by start_date with a custom comparison function.
 	std::vector<std::vector<flightPlan*>*>* vector_of_vectors = new std::vector<std::vector<flightPlan*>*>;
@@ -92,27 +90,18 @@ int check_assignment(const std::vector<flightPlan*>* FPvector, const DateTime& s
 		}
 		sort(vector_of_vectors->at(i)->begin(), vector_of_vectors->at(i)->end(), sort_by_startDateTime); // Sort this pilot's vector by startDateTime
 		// Now FPs in each vector should be sorted by startDateTime.
-		// DIAGNOSTIC
-		for (int j = 0; j < (int) vector_of_vectors->at(i)->size() - 1; ++j) { // Check if they're sorted right
-			if (compare_dates(vector_of_vectors->at(i)->at(j)->startDateTime, vector_of_vectors->at(i)->at(j+1)->startDateTime) < 0) {
-				printf("mistake\n");
-				exit(1);
-			}
-		}
-		// END OF DIAGNOSTIC
 	}
 
 	check_assignments_11h_gap(vector_of_vectors);
 	check_assignments_rolling_weeks(vector_of_vectors);
 
-	printf("-----  ASSIGNMENT OK, %ld pilots, V: %f -----\n", vector_of_vectors->size(), V);
+	printf("-----  ASSIGNMENT OK, %ld pilots, V: %f\n", vector_of_vectors->size(), V);
 	/////////// Free stuff
 	for (int i = 0; i < (int) vector_of_maps.size(); ++i)
 		delete vector_of_maps.at(i);
 	for (int i = 0; i < (int) vector_of_vectors->size(); ++i)
 		delete vector_of_vectors->at(i);
 	delete vector_of_vectors;
-	printf("-------------------------------------------- end of check_assignment function\n");
 	return 0;
 }
 
@@ -138,13 +127,14 @@ int check_assignments_11h_gap(const std::vector<std::vector<flightPlan*>*>* vect
 int check_assignments_rolling_weeks(const std::vector<std::vector<flightPlan*>*>* vector_of_vectors) {
 	char* busy_days_in_rolling_week = new char[7];
 	for (int ip = 0; ip < (int) vector_of_vectors->size(); ++ip) {
+		if (vector_of_vectors->at(ip)->size() == 0) // Some pilots may not have any FPs
+			continue;
 		// Look at this pilot's first and last FP->start,end (minutes), and get first and last day.
 		// Convert that into rolling weeks. For every rolling week, look at all FPs to see if >5 days are touched.
 		int first_flight_start_time = vector_of_vectors->at(ip)->front()->start;
 		int last_flight_end_time = vector_of_vectors->at(ip)->back()->end;
 		int first_day = first_flight_start_time / 1440;
 		int last_day = last_flight_end_time / 1440;
-		// printf("Pilot %d start: %d (%d), end: %d (%d)\n", ip, first_flight_start_time, first_day, last_flight_end_time, last_day);
 		if (last_day - first_day <= 5) // "Days off" constraint doesn't matter if there's only 5 days.
 			continue;
 		int days_6_or_7 = 7; // This pilot might have 6 days of work, so then we have one rolling week with 6 days.
@@ -168,8 +158,6 @@ int check_assignments_rolling_weeks(const std::vector<std::vector<flightPlan*>*>
 				delete[] busy_days_in_rolling_week;
 				exit(1);
 			}
-			// else
-			// 	printf("Pilot %d has %d busy days in rolling week %d\n", ip, busy_days, d);
 		}
 	}
 	delete[] busy_days_in_rolling_week;

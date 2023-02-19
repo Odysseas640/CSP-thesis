@@ -150,12 +150,15 @@ int read_arguments(char argc, const char* argv[], int& nPilots, char*& pairings_
 			check_assignment_i = 1;
 		else if (strcmp(argv[i],"-t") == 0)
 			naxos_time_limit_seconds = atoi(argv[i+1]);
-		else if (strcmp(argv[i],"-it") == 0)
+		else if (strcmp(argv[i],"-it") == 0) {
 			iterations_limit = atoi(argv[i+1]);
+			if (iterations_limit <= 0)
+				iterations_limit = 987654321;
+		}
 		else if (strcmp(argv[i],"-d") == 0)
 			debug_print = 1;
 	}
-	if (nPilots < 0) {
+	if (nPilots < 0 && check_assignment_i == 0) {
 		printf("Error: No number of pilots specified.\n");
 		exit(1);
 	}
@@ -164,12 +167,16 @@ int read_arguments(char argc, const char* argv[], int& nPilots, char*& pairings_
 		exit(1);
 	}
 	if (starttime == NULL) {
-		printf("Error: No start time specified.\n");
-		exit(1);
+		if (debug_print == 1)
+			printf("No start time specified, using default 2001-01-01/00:00\n");
+		starttime = new char[17];
+		strcpy(starttime, "2001-01-01/00:00");
 	}
 	if (endtime == NULL) {
-		printf("Error: No end time specified.\n");
-		exit(1);
+		if (debug_print == 1)
+			printf("No end time specified, using default 2020-12-31/23:59\n");
+		endtime = new char[17];
+		strcpy(endtime, "2020-12-31/23:59");
 	}
 	return 0;
 }
